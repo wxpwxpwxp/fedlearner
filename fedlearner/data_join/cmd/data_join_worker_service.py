@@ -86,7 +86,7 @@ if __name__ == "__main__":
                         default=False, const=True, nargs='?',
                         help="enable the negative example auto-generator, "\
                         "filled with label: 0")
-    parser.add_argument('--sampling_frequency', type=int, default=128,
+    parser.add_argument('--negative_sampling_frequency', type=int, default=128,
                         help="the frequency of sampling when auto-generating "\
                         "negative example")
     args = parser.parse_args()
@@ -108,7 +108,8 @@ if __name__ == "__main__":
                                             args.max_conversion_delay),
                     enable_negative_example_generator=\
                         args.enable_negative_example_generator,
-                    sampling_frequency=args.sampling_frequency,
+                    negative_sampling_frequency=\
+                        args.negative_sampling_frequency,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

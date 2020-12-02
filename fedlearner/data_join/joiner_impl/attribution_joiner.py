@@ -23,16 +23,16 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class NegativeExampleGenerator(object):
-    def __init__(self, sampling_frequency):
+    def __init__(self, negative_sampling_frequency):
         self._buf = {}
-        self._sampling_frequency = sampling_frequency
+        self._negative_sampling_frequency = negative_sampling_frequency
         self._counter = 0
 
     def update(self, mismatches):
         self._buf.update(mismatches)
 
     def _skip(self):
-        if self._counter >= self._sampling_frequency:
+        if self._counter >= self._negative_sampling_frequency:
             print("skip", self._counter)
             self._counter = 0
             return True
@@ -310,7 +310,7 @@ class AttributionJoiner(ExampleJoiner):
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
-            sf = example_joiner_options.sampling_frequency
+            sf = example_joiner_options.negative_sampling_frequency
             self._negative_example_generator = NegativeExampleGenerator(sf)
 
     @classmethod
@@ -321,7 +321,8 @@ class AttributionJoiner(ExampleJoiner):
         ls = self._leader_join_window.size() - 1
         fs = self._follower_join_window.size() - 1
         if ls < 0 or fs < 0:
-            return 0
+            # only happen when window never be filled
+            return self._max_conversion_delay
 
         return self._follower_join_window[fs][1].event_time - \
             self._leader_join_window[0][1].event_time
@@ -341,9 +342,9 @@ class AttributionJoiner(ExampleJoiner):
             follower_filled = self._fill_follower_join_window()
 
             follower_exhausted = raw_data_finished and      \
-                    self._follower_join_window.et_span() <  \
-                    self._max_conversion_delay     and      \
-                    self._leader_ahead_follower() <=        \
+                    self._follower_join_window.size() <     \
+                    self._min_window_size // 2 and          \
+                    self._leader_ahead_follower() <         \
                     self._max_conversion_delay
 
             logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"\

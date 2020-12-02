@@ -62,7 +62,7 @@ class TestAttributionJoin(unittest.TestCase):
                 enable_negative_example_generator=True,
                 data_block_dump_interval=32,
                 data_block_dump_threshold=128,
-                sampling_frequency=10,
+                negative_sampling_frequency=10,
             )
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
