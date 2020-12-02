@@ -320,10 +320,11 @@ class AttributionJoiner(ExampleJoiner):
     def _leader_ahead_follower(self):
         ls = self._leader_join_window.size() - 1
         fs = self._follower_join_window.size() - 1
-        if ls < 0 or fs < 0:
-            # only happen when window never be filled
+        if ls < 0:
+            # only accessed when leader never be filled
             return self._max_conversion_delay
-
+        if fs < 0:
+            return 0
         return self._follower_join_window[fs][1].event_time - \
             self._leader_join_window[0][1].event_time
 
@@ -372,19 +373,17 @@ class AttributionJoiner(ExampleJoiner):
                     yield meta
                 self._leader_restart_index = pairs[len(pairs) - 1][1]
                 self._follower_restart_index = pairs[len(pairs) - 1][2]
-            logging.info("Restart index for leader %d, follwer %d",     \
-                          self._leader_restart_index,                   \
-                          self._follower_restart_index)
+            logging.info("Restart index of leader %d, follwer %d, pair_buf=%d,"\
+                         " raw_pairs=%d, pairs=%d", self._leader_restart_index,\
+                         self._follower_restart_index,
+                         len(self._sorted_buf_by_leader_index), len(raw_pairs),
+                         len(pairs))
 
             #4. update the watermark
             stride = self._trigger.trigger(self._follower_join_window,  \
                                            self._leader_join_window)
             self._follower_join_window.forward(stride[0])
             self._leader_join_window.forward(stride[1])
-            logging.info("Stat: pair_buf=%d, raw_pairs=%d, pairs=%d, "  \
-                         "stride=%s",                                   \
-                         len(self._sorted_buf_by_leader_index),         \
-                         len(raw_pairs), len(pairs), stride)
 
             if not leader_filled and                                    \
                not sync_example_id_finished and                         \
@@ -398,8 +397,13 @@ class AttributionJoiner(ExampleJoiner):
 
             if stride == (0, 0):
                 if raw_data_finished:
-                    self._leader_join_window.forward(
-                        self._leader_join_window.size())
+                    fs = self._follower_join_window.size()
+                    sid = 0
+                    while self._follower_join_window[fs-1][1].event_time >\
+                        self._leader_join_window[sid][1].event_time + \
+                          self._max_conversion_delay:
+                        sid += 1
+                    self._leader_join_window.forward(sid)
 
                 if sync_example_id_finished:
                     force_stride = \
