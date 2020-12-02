@@ -23,14 +23,26 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class NegativeExampleGenerator(object):
-    def __init__(self):
+    def __init__(self, sampling_frequency):
         self._buf = {}
+        self._sampling_frequency = sampling_frequency
+        self._counter = 0
 
     def update(self, mismatches):
         self._buf.update(mismatches)
 
+    def _skip(self):
+        if self._counter >= self._sampling_frequency:
+            print("skip", self._counter)
+            self._counter = 0
+            return True
+        self._counter += 1
+        return False
+
     def generate(self, fe, prev_leader_idx, leader_idx):
         for idx in range(prev_leader_idx, leader_idx):
+            if self._skip():
+                continue
             if idx not in self._buf:
                 continue
             example_id = self._buf[idx].example_id
@@ -298,7 +310,8 @@ class AttributionJoiner(ExampleJoiner):
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
-            self._negative_example_generator = NegativeExampleGenerator()
+            sf = example_joiner_options.sampling_frequency
+            self._negative_example_generator = NegativeExampleGenerator(sf)
 
     @classmethod
     def name(cls):
